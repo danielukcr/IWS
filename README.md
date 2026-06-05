@@ -1,8 +1,4 @@
-
-
-
-
-
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -104,6 +100,19 @@
         from { opacity: 0; transform: translateY(20px); }
         to { opacity: 1; transform: translateY(0); }
     }
+
+    .resultBox {
+        margin-top: 20px;
+        padding: 15px;
+        border-radius: 10px;
+        text-align: center;
+        font-size: 17px;
+        font-weight: 600;
+        display: none;
+    }
+
+    .pass { background: rgba(0,255,0,0.35); }
+    .deny { background: rgba(255,0,0,0.35); }
 </style>
 </head>
 
@@ -119,11 +128,32 @@
     <textarea id="reason" rows="4" placeholder="Explain why you need the room"></textarea>
 
     <button onclick="sendRequest()">Submit Request</button>
+
+    <div id="result" class="resultBox"></div>
 </div>
 
 <div class="toast" id="toast">Request Sent Successfully</div>
 
 <script>
+function decide(room, reason) {
+    const slang = ["idk", "cba", "bruh", "lol", "lmao", "nah"];
+    const hasSlang = slang.some(word => reason.toLowerCase().includes(word));
+
+    if (!/^[0-9]+$/.test(room)) {
+        return { decision: "Denied", reason: "Invalid room number" };
+    }
+
+    if (reason.length < 20) {
+        return { decision: "Denied", reason: "Reason too short" };
+    }
+
+    if (hasSlang) {
+        return { decision: "Denied", reason: "Unprofessional language detected" };
+    }
+
+    return { decision: "Approved", reason: "Valid request" };
+}
+
 function sendRequest() {
     const room = document.getElementById("roomNumber").value;
     const reason = document.getElementById("reason").value;
@@ -133,15 +163,25 @@ function sendRequest() {
         return;
     }
 
+    const result = decide(room, reason);
+
+    // Show result on screen
+    const box = document.getElementById("result");
+    box.style.display = "block";
+    box.className = "resultBox " + (result.decision === "Approved" ? "pass" : "deny");
+    box.innerText = result.decision + ": " + result.reason;
+
     const webhookURL = "https://discord.com/api/webhooks/1512577005038604520/1r2_SG7Tj5ZCTmqX8rMI1AfaF0OxfqellW156WrJifib7Qdj5LlLf6uJ7rwzgcLPaUIm";
 
     const payload = {
         embeds: [{
-            title: "New Room Request",
-            color: 3447003,
+            title: "Room Request Decision",
+            color: result.decision === "Approved" ? 3066993 : 15158332,
             fields: [
                 { name: "Room Number", value: room },
-                { name: "Reason", value: reason }
+                { name: "Reason", value: reason },
+                { name: "Decision", value: result.decision },
+                { name: "Decision Reason", value: result.reason }
             ],
             footer: { text: "Internal Workspace System" },
             timestamp: new Date()
@@ -153,11 +193,7 @@ function sendRequest() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
     })
-    .then(() => {
-        showToast();
-        document.getElementById("roomNumber").value = "";
-        document.getElementById("reason").value = "";
-    })
+    .then(() => showToast())
     .catch(err => alert("Error sending request: " + err));
 }
 
